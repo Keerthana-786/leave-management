@@ -1,323 +1,214 @@
-<div align="center">
+# LeaveFlow
 
-# 🔷 LeaveFlow
+A leave approval platform for organisations where a leave request has to pass through more than one person, respect team capacity, and leave a record that can be checked later.
 
-### Leave management that's **explainable**, **accountable** and **auditable**
-
-*Rule-driven approvals · Team coverage awareness · Automatic escalation · Full audit trail*
-
-<br/>
-
-![Java](https://img.shields.io/badge/Java-17-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)
-![Spring Boot](https://img.shields.io/badge/Spring_Boot-3-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)
-![React](https://img.shields.io/badge/React-TypeScript-61DAFB?style=for-the-badge&logo=react&logoColor=black)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Prod-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
-![JWT](https://img.shields.io/badge/Auth-JWT_+_RBAC-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-
-**🏆 Acentra Health · BUILD TO CARE &nbsp;|&nbsp; 👥 Team The Prism**
-
-[Overview](#-why-leaveflow) • [Features](#-features) • [Workflow](#-approval-workflow) • [Rules](#-rules-you-can-explain) • [Architecture](#-architecture) • [Quick Start](#-quick-start) • [Team](#-team--the-prism)
-
-</div>
+Built by team **The Prism** for the **Acentra Health BUILD TO CARE** hackathon.
 
 ---
 
-## 💡 Why LeaveFlow?
+## Contents
 
-> Most leave tools are just a form. **Real organisations need a decision workflow.**
-
-A leave request isn't only "dates + submit". Someone has to check the balance, skip holidays, spot that half the team is already off, chase a manager who's gone quiet, and leave a trail that HR can trust later.
-
-LeaveFlow does all of that, and it **shows its working**.
-
-| ❌ The usual problem | ✅ The LeaveFlow answer |
-|---|---|
-| Approvals stall when a manager is away | **SLA timers → reminders → escalation** to HR / fallback |
-| Wrong balances, weekends counted as leave | **Working-day engine** that excludes weekends and public holidays |
-| "Why is my balance 12?" | **Visible pro-rata calculation**, not a mystery number |
-| Whole team off the same week | **Coverage-aware conflict flags** for reviewers |
-| Nobody knows who approved what | **Append-only audit trail** for every action |
-| Frontend-only permissions | **Backend-enforced RBAC**, ownership and delegation checks |
+1. [The problem](#the-problem)
+2. [What LeaveFlow does](#what-leaveflow-does)
+3. [How a request moves](#how-a-request-moves)
+4. [Business rules](#business-rules)
+5. [Roles](#roles)
+6. [System design](#system-design)
+7. [Tech stack](#tech-stack)
+8. [Running the project](#running-the-project)
+9. [Scope decisions](#scope-decisions)
+10. [Team](#team)
 
 ---
 
-## ✨ Features
+## The problem
 
-<table>
-<tr>
-<td width="50%" valign="top">
+Submitting a leave form is the easy part. The difficult parts come afterwards:
 
-### 📋 Leave Management
-- Apply for leave with a live **preview**
-- Working-day calculation
-- Public-holiday exclusion
-- Leave-balance validation
-- Pro-rata entitlement for mid-year joiners
-- Request tracking and timelines
+- A manager is unavailable and the request sits untouched.
+- Weekends and public holidays get counted against the employee's balance.
+- Someone who joined in the middle of the year is given a full-year quota, or a number nobody can justify.
+- Several people from one team apply for the same week and nobody notices until it is too late.
+- Months later, no one can say who approved a request or when.
 
-</td>
-<td width="50%" valign="top">
-
-### 🔄 Approval Workflow
-- **Employee → Manager → HR** chain
-- Explicit request states
-- Centralised transition logic
-- Rejection and cancellation handling
-- SLA-based escalation
-- Approval delegation
-
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
-
-### 👥 Team Conflict Detection
-- Detects overlapping teammates' leave
-- Calculates team-level impact
-- **Flags for review, never auto-rejects**
-- Coverage-aware analysis
-- Can weigh critical team skills
-
-</td>
-<td width="50%" valign="top">
-
-### 🔐 Security & Access
-- JWT authentication
-- BCrypt password hashing
-- Role-based access control
-- Ownership and delegation validation
-- All authorization enforced server-side
-
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
-
-### 🧾 Auditability
-Every important action is stored in an **append-only** trail:
-`actor` · `action` · `previous status` · `new status` · `comment` · `timestamp`
-
-</td>
-<td width="50%" valign="top">
-
-### 🔔 Notifications
-- In-app notifications
-- Email-outbox architecture for reliable delivery of notification events
-
-</td>
-</tr>
-</table>
+LeaveFlow is built around these situations rather than around the form.
 
 ---
 
-## 🎭 One Platform, Three Experiences
+## What LeaveFlow does
 
-| 🧑‍💼 Employee | 🧑‍🏫 Manager | 🛡️ HR |
-|---|---|---|
-| Apply for leave | Approval inbox | All requests |
-| View balances | Team calendar | Escalated requests |
-| Track requests | Conflict alerts | Holiday management |
-| Request timelines | Delegations | Audit trail |
-| Notifications | SLA information | Analytics |
-| | Team analytics | Team capacity |
+**Checks a request before it is submitted.** The employee sees the working days counted, the balance that will remain, any holidays that fall inside the range, and whether teammates are already away.
+
+**Routes it through a fixed approval chain.** Every request goes from the employee to the manager and then to HR. If the manager does not respond within the configured time, the request is escalated.
+
+**Flags coverage problems without deciding for anyone.** When too much of a team would be absent, the approver is warned. The system never rejects a request on this ground by itself.
+
+**Records every step.** Each approval, rejection, cancellation and escalation is written to an append-only audit log.
+
+**Shows its arithmetic.** Working days and pro-rata entitlement are displayed with the calculation, so users can see how a number was reached.
+
+Other capabilities include approval delegation, holiday management, in-app notifications, an email outbox for outgoing notifications, and analytics for managers and HR.
 
 ---
 
-## 🔁 Approval Workflow
+## How a request moves
 
 ```mermaid
 flowchart TD
-    A([👤 Employee applies]) --> B{Validate request}
-    B --> B1[📅 Working days]
-    B --> B2[💰 Leave balance]
-    B --> B3[🎉 Public holidays]
-    B --> B4[👥 Team conflict]
-    B1 & B2 & B3 & B4 --> C[👀 Preview]
-    C --> D[📨 Submit]
-    D --> E[⏳ PENDING_MANAGER]
-    E -->|Manager approves| F[⏳ PENDING_HR]
-    E -->|SLA exceeded| X[🚨 ESCALATED]
-    X --> G[HR / Fallback decides]
-    F -->|HR approves| H([✅ APPROVED])
-    G --> H
-    E -.->|Reject| R([❌ REJECTED])
-    F -.->|Reject| R
-    E -.->|Employee cancels| Z([🚫 CANCELLED])
+    A[Employee applies] --> B[Validation: working days, balance, holidays, team conflict]
+    B --> C[Preview]
+    C --> D[Submit]
+    D --> E[PENDING_MANAGER]
+    E -->|Manager approves| F[PENDING_HR]
+    E -->|SLA exceeded| G[ESCALATED]
+    F -->|HR approves| H[APPROVED]
+    G -->|HR or fallback approver decides| H
+    E -->|Rejected| R[REJECTED]
+    F -->|Rejected| R
+    G -->|Rejected| R
+    E -->|Withdrawn| Z[CANCELLED]
+    F -->|Withdrawn| Z
 ```
 
-### 🧩 State Machine
+### States
 
-```mermaid
-stateDiagram-v2
-    [*] --> PENDING_MANAGER: Submit
-    PENDING_MANAGER --> PENDING_HR: Manager approves
-    PENDING_MANAGER --> ESCALATED: SLA exceeded
-    PENDING_HR --> APPROVED: HR approves
-    ESCALATED --> APPROVED: HR / fallback approves
-    PENDING_MANAGER --> REJECTED
-    PENDING_HR --> REJECTED
-    ESCALATED --> REJECTED
-    PENDING_MANAGER --> CANCELLED
-    PENDING_HR --> CANCELLED
-    APPROVED --> [*]
-    REJECTED --> [*]
-    CANCELLED --> [*]
-```
+| State | Meaning |
+|---|---|
+| `PENDING_MANAGER` | Waiting for the reporting manager |
+| `PENDING_HR` | Manager has approved, waiting for HR |
+| `ESCALATED` | Manager did not act within the SLA |
+| `APPROVED` | Final approval given |
+| `REJECTED` | Declined at any stage |
+| `CANCELLED` | Withdrawn before a final decision |
 
-All transitions live in **one central place** and are validated against the current state, requested transition, actor, role, ownership, delegation and business rules.
+All state changes go through one piece of transition logic. Before a change is accepted, it is checked against the current state, the requested transition, the person acting, their role, whether they own the request, any delegation in force, and the relevant business rules.
 
 ---
 
-## 🧠 Rules You Can Explain
+## Business rules
 
-### 📅 Working Days
-
-```text
-Monday–Friday  −  Public Holidays  =  Actual Leave Days
-```
-
-### 📐 Pro-Rata Entitlement
+### Counting leave days
 
 ```text
-Annual Quota × Eligible Months / 12
+Weekdays (Mon-Fri) in the range  minus  public holidays  =  leave days charged
 ```
 
-> **Example:** 24-day quota, joins 1 July → 6 eligible months → `24 × 6 / 12 =` **12 days**
-
-The UI exposes the calculation instead of showing an unexplained balance.
-
-### ⚠️ Team Conflict Threshold
+### Pro-rata entitlement for mid-year joiners
 
 ```text
-(Overlapping Teammates + 1) / Team Size  >  30%
+Annual quota x eligible months / 12
 ```
 
-> **Example:** team of 10
-> - 2 teammates overlap → `3/10 = 30%` → ✅ not flagged
-> - 3 teammates overlap → `4/10 = 40%` → ⚠️ **flagged for review**
+For example, with a 24-day annual quota and a joining date of 1 July, there are 6 eligible months, so the entitlement is 24 x 6 / 12 = 12 days.
 
-A conflict is a **signal for the approver**, not an automatic rejection.
+### Team conflict
+
+```text
+(overlapping teammates + 1) / team size > 30%
+```
+
+For a team of 10, two overlapping teammates give 3/10 = 30%, which is not flagged. Three overlapping teammates give 4/10 = 40%, which is flagged. The threshold is configurable. A flag prompts the approver to look closer; it does not block the request.
 
 ---
 
-## 🏗️ Architecture
+## Roles
+
+| Role | Responsibilities |
+|---|---|
+| Employee | Apply for leave, view balances, follow request status and history, read notifications |
+| Manager | Review team requests, see conflict alerts and SLA timers, use the team calendar, delegate approvals, view team analytics |
+| HR | Give final approval, handle escalated requests, manage holidays, inspect the audit trail, view analytics and team capacity |
+
+Permissions are enforced on the server. Hiding a button in the interface is never the only protection.
+
+---
+
+## System design
 
 ```mermaid
 flowchart TB
-    subgraph FE["🖥️ React + TypeScript"]
-        E1[Employee UI]
-        E2[Manager UI]
-        E3[HR UI]
+    subgraph Client
+        UI[React + TypeScript]
     end
-    subgraph BE["⚙️ Spring Boot"]
-        C[Controllers] --> S[Service Layer]
-        S --> W[Workflow]
-        S --> R[Rules Engine]
-        S --> SE[Security]
-        S --> ES[Escalation]
-        S --> AU[Audit]
-        S --> DE[Delegation]
-        S --> NO[Notifications]
+    subgraph Server[Spring Boot]
+        C[Controllers] --> S[Services]
+        S --> M[Workflow, rules, security, escalation, audit, delegation, notifications]
     end
-    FE -- REST API --> C
+    UI -->|REST| C
     S --> J[Spring Data JPA]
-    J --> H2[(H2 · Demo)]
-    J --> PG[(PostgreSQL · Production)]
+    J --> H2[(H2 for demo)]
+    J --> PG[(PostgreSQL for production)]
 ```
 
-**Principle:** `Controller → Service → Repository`. Controllers stay thin, business logic lives in the service layer, and the API exposes **DTOs**, never persistence entities.
+The layering is Controller, Service, Repository. Controllers stay thin and business logic sits in the service layer. The API returns DTOs instead of exposing JPA entities.
 
-### 🗄️ Core Domain Model
+### Domain model
 
-`User` · `Team` · `LeaveType` · `LeaveBalance` · `LeaveRequest` · `ApprovalStep` · `Delegation` · `Holiday` · `AuditEvent` · `Notification` · `EmailOutbox`
+`User`, `Team`, `LeaveType`, `LeaveBalance`, `LeaveRequest`, `ApprovalStep`, `Delegation`, `Holiday`, `AuditEvent`, `Notification`, `EmailOutbox`
 
-The workflow centres on `LeaveRequest` and its `ApprovalStep`, audit and notification records.
+`LeaveRequest` is the central entity. Each request has its own approval steps, audit events and notifications.
+
+### Audit record
+
+Each entry stores the actor, the action, the previous status, the new status, an optional comment and the time. Entries are only ever added, never edited.
 
 ---
 
-## 🛠️ Tech Stack
+## Tech stack
 
-| Layer | Technologies |
+| Area | Tools |
 |---|---|
-| **Backend** | Java 17 · Spring Boot 3 · Spring Web · Spring Data JPA · Hibernate · Bean Validation · Spring Security · JWT · BCrypt · Maven · OpenAPI / Swagger |
-| **Frontend** | React · TypeScript · Vite · Tailwind CSS · React Router · TanStack Query · Axios · Recharts |
-| **Database** | H2 (demo) · PostgreSQL (production profile) |
-| **Infra / Other** | Docker · Docker Compose · `@Scheduled` jobs for escalation |
+| Backend | Java 17, Spring Boot 3, Spring Web, Spring Data JPA, Hibernate, Bean Validation, Spring Security, JWT, BCrypt, Maven, OpenAPI/Swagger |
+| Frontend | React, TypeScript, Vite, Tailwind CSS, React Router, TanStack Query, Axios, Recharts |
+| Database | H2 (demo), PostgreSQL (production profile) |
+| Other | Scheduled jobs using `@Scheduled` for escalation, Docker and Docker Compose |
 
 ---
 
-## 🚀 Quick Start
+## Running the project
 
-> ⚙️ Adjust paths and commands to match your repo layout.
+Update the paths and commands below to match the repository.
 
 ```bash
-# 1. Clone
-git clone <your-repo-url>
+git clone <repository-url>
 cd leaveflow
 
-# 2. Backend (H2 demo profile)
+# backend
 cd backend
 mvn spring-boot:run
 
-# 3. Frontend
-cd ../frontend
+# frontend (in a second terminal)
+cd frontend
 npm install
 npm run dev
 ```
 
-**Or with Docker:**
+With Docker:
 
 ```bash
 docker compose up --build
 ```
 
-📖 API docs are available through Swagger UI once the backend is running.
+Swagger UI is available once the backend has started.
 
-<!-- 🔑 Add demo accounts here: Employee / Manager / HR -->
-
----
-
-## 🖼️ Screenshots
-
-<!-- Replace with real screenshots -->
-| Employee: Apply & Preview | Manager: Approval Inbox | HR: Audit Trail |
-|---|---|---|
-| *screenshot* | *screenshot* | *screenshot* |
+<!-- Add demo accounts for the Employee, Manager and HR roles here. -->
 
 ---
 
-## ⚖️ Deliberate Design Boundaries
+## Scope decisions
 
-We kept the system modular and practical on purpose. LeaveFlow intentionally avoids:
-
-`Microservices` · `Kafka` · `MongoDB` · `Firebase` · `Node/Python backend` · `Angular` · `Spring State Machine` · `Unnecessary AI/LLM components`
-
-The workflow is plain, testable, **application-level Java state-transition logic**.
+To keep the project easy to reason about, these were left out on purpose: microservices, Kafka, MongoDB, Firebase, a Node or Python backend, Angular, Spring State Machine, and any AI or LLM component that the problem did not require. The workflow is ordinary Java transition logic.
 
 ---
 
-## 👥 Team · The Prism
+## Team
+
+Team **The Prism**
 
 | Member | Registration ID |
 |---|---|
-| **Keerthana** | RA241103010552 |
-| **Abhinaya** | RA2411026010183 |
-| **Deepan Kumar S** | RA241103010888 |
-| **Madhanmithran P** | RA241103010854 |
-| **SanjithKumar** | RA241103010576 |
-
----
-
-<div align="center">
-
-### 🏆 Acentra Health BUILD TO CARE
-
-**Team:** The Prism &nbsp;•&nbsp; **Project:** LeaveFlow
-
-<br/>
-
-> *LeaveFlow turns leave management from a simple submission form into an*
-> ***accountable, explainable and auditable*** *workforce decision workflow.*
-
-</div>
+| Keerthana | RA241103010552 |
+| Abhinaya | RA2411026010183 |
+| Deepan Kumar S | RA241103010888 |
+| Madhanmithran P | RA241103010854 |
+| SanjithKumar | RA241103010576 |
