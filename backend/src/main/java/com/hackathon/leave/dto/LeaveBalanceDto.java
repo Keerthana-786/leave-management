@@ -9,5 +9,7 @@ public record LeaveBalanceDto(
         double entitled,
         double used,
         double pending,
-        double remaining
+        double remaining,
+        double available,
+        String proRataExplanation
 ) {}
