@@ -61,7 +61,26 @@ public class DataLoader implements CommandLineRunner {
             log.info("Database already initialized. Skipping seed.");
             return;
         }
+        seedData();
+    }
 
+    @org.springframework.transaction.annotation.Transactional
+    public void resetData() {
+        log.info("Resetting database to initial seed scenarios...");
+        notificationRepository.deleteAll();
+        auditEventRepository.deleteAll();
+        approvalStepRepository.deleteAll();
+        leaveRequestRepository.deleteAll();
+        delegationRepository.deleteAll();
+        leaveBalanceRepository.deleteAll();
+        holidayRepository.deleteAll();
+        leaveTypeRepository.deleteAll();
+        userRepository.deleteAll();
+        teamRepository.deleteAll();
+        seedData();
+    }
+
+    private void seedData() {
         log.info("Executing BE-2 Seed Data initialization...");
         String sharedPasswordHash = passwordEncoder.encode("Demo@123");
 
