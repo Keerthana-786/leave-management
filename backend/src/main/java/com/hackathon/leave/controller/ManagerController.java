@@ -3,11 +3,13 @@ package com.hackathon.leave.controller;
 import com.hackathon.leave.dto.LeaveResponseDto;
 import com.hackathon.leave.dto.PageResponseDto;
 import com.hackathon.leave.model.LeaveStatus;
+import com.hackathon.leave.model.User;
+import com.hackathon.leave.security.SecurityUtils;
+import com.hackathon.leave.service.ManagerHrService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,6 +24,14 @@ import java.time.LocalDate;
 @Tag(name = "Manager", description = "Endpoints for managers to view and review team leave requests")
 public class ManagerController {
 
+    private final ManagerHrService managerHrService;
+    private final SecurityUtils securityUtils;
+
+    public ManagerController(ManagerHrService managerHrService, SecurityUtils securityUtils) {
+        this.managerHrService = managerHrService;
+        this.securityUtils = securityUtils;
+    }
+
     @GetMapping("/requests")
     @PreAuthorize("hasAnyRole('MANAGER', 'HR')")
     @Operation(summary = "Get manager approval requests", description = "Retrieves team leave requests assigned to the manager with filtering and pagination")
@@ -35,6 +45,10 @@ public class ManagerController {
             @Parameter(description = "Page number (0-indexed)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        User manager = securityUtils.getCurrentUser();
+        PageResponseDto<LeaveResponseDto> result = managerHrService.getManagerRequests(
+                manager, status, type, from, to, q, sort, page, size
+        );
+        return ResponseEntity.ok(result);
     }
 }

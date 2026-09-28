@@ -3,11 +3,11 @@ package com.hackathon.leave.controller;
 import com.hackathon.leave.dto.LeaveResponseDto;
 import com.hackathon.leave.dto.PageResponseDto;
 import com.hackathon.leave.model.LeaveStatus;
+import com.hackathon.leave.service.ManagerHrService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,6 +22,12 @@ import java.time.LocalDate;
 @Tag(name = "HR", description = "Endpoints for HR administrators to oversee organization-wide leaves and escalations")
 public class HrController {
 
+    private final ManagerHrService managerHrService;
+
+    public HrController(ManagerHrService managerHrService) {
+        this.managerHrService = managerHrService;
+    }
+
     @GetMapping("/requests")
     @PreAuthorize("hasRole('HR')")
     @Operation(summary = "Get HR leave requests", description = "Retrieves organization-wide leave requests, escalations, and pending HR reviews with filtering")
@@ -35,6 +41,9 @@ public class HrController {
             @Parameter(description = "Page number (0-indexed)") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size
     ) {
-        return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+        PageResponseDto<LeaveResponseDto> result = managerHrService.getHrRequests(
+                status, type, from, to, q, sort, page, size
+        );
+        return ResponseEntity.ok(result);
     }
 }
